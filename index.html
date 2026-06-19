@@ -179,8 +179,9 @@
         let score = 0;
         let ballsLeft = 5;
         let gameOver = false;
-        const gravity = 0.22;
-        
+        const gravity = 0.25;
+        const SUB_STEPS = 6; // High performance micro-steps calculation layout
+
         // Control Switches
         let leftFlipperActive = false;
         let rightFlipperActive = false;
@@ -198,13 +199,13 @@
 
         // Reactive Particle Engine
         let particles = [];
-        function spawnParticles(x, y, color, count = 8) {
+        function spawnParticles(x, y, color, count = 6) {
             for(let i=0; i<count; i++) {
                 particles.push({
                     x: x, y: y,
-                    vx: (Math.random() - 0.5) * 6,
-                    vy: (Math.random() - 0.5) * 6,
-                    radius: Math.random() * 3 + 1,
+                    vx: (Math.random() - 0.5) * 5,
+                    vy: (Math.random() - 0.5) * 5,
+                    radius: Math.random() * 2.5 + 1,
                     alpha: 1,
                     color: color
                 });
@@ -226,7 +227,7 @@
                 ctx.beginPath();
                 ctx.moveTo(this.x1, this.y1);
                 ctx.lineTo(this.x2, this.y2);
-                ctx.lineWidth = this.flashTimer > 0 ? 5 : 3;
+                ctx.lineWidth = this.flashTimer > 0 ? 6 : 3;
                 ctx.strokeStyle = this.flashTimer > 0 ? colors.white : this.color;
                 ctx.shadowColor = this.color;
                 ctx.shadowBlur = this.flashTimer > 0 ? 20 : 6;
@@ -236,7 +237,7 @@
             }
         }
 
-        // Upgraded Physics Ball Object
+        // Fixed Physics Ball Object
         class Ball {
             constructor() {
                 this.trail = [];
@@ -244,59 +245,30 @@
             }
 
             reset() {
-                this.x = 380; // Perfectly centered in the launch track
-                this.y = 550;
+                this.x = 380; 
+                this.y = 540;
                 this.vx = 0;
                 this.vy = 0;
                 this.radius = 9;
                 this.trail = [];
             }
 
-            update() {
-                if (gameOver) return;
-
-                // Physics Trail Memory
+            // Updates base frame states (like trails)
+            recordTrail() {
                 this.trail.push({x: this.x, y: this.y});
-                if(this.trail.length > 5) this.trail.shift();
-
-                // Apply Gravity Engine
-                this.vy += gravity;
-
-                // Speed Cap (Expanded upward velocity limit to allow high-powered custom launches)
-                this.vx = Math.max(-14, Math.min(14, this.vx));
-                this.vy = Math.max(-24, Math.min(16, this.vy)); // Raised max upward speed from -16 to -24
-
-                this.x += this.vx;
-                this.y += this.vy;
-
-                // Launch Track Bottom Floor constraint logic
-                if (this.x > 360 && this.y + this.radius > 575) {
-                    this.y = 575 - this.radius;
-                    this.vy = 0;
-                }
-
-                // Core Boundary Fail-safe Drain logic
-                if (this.y > canvas.height + 20) {
-                    ballsLeft--;
-                    updateUI();
-                    if (ballsLeft <= 0) {
-                        endGame();
-                    } else {
-                        this.reset();
-                    }
-                }
+                if(this.trail.length > 6) this.trail.shift();
             }
 
             draw() {
-                // Render Space-Age Speed Trail
+                // Render Speed Trail
                 for(let i=0; i<this.trail.length; i++) {
                     ctx.beginPath();
                     ctx.arc(this.trail[i].x, this.trail[i].y, this.radius * (i/this.trail.length), 0, Math.PI*2);
-                    ctx.fillStyle = `rgba(0, 243, 255, ${0.15 * (i/this.trail.length)})`;
+                    ctx.fillStyle = `rgba(0, 243, 255, ${0.12 * (i/this.trail.length)})`;
                     ctx.fill();
                 }
 
-                // Render Physical Ball Unit
+                // Render Physical Ball
                 ctx.save();
                 ctx.beginPath();
                 ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
@@ -325,7 +297,7 @@
                 ctx.save();
                 ctx.beginPath();
                 ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
-                ctx.fillStyle = this.flash > 0 ? 'rgba(255,255,255,0.3)' : 'rgba(10,5,30,0.6)';
+                ctx.fillStyle = this.flash > 0 ? 'rgba(255,255,255,0.4)' : 'rgba(10,5,30,0.6)';
                 ctx.fill();
                 ctx.strokeStyle = this.flash > 0 ? colors.white : this.color;
                 ctx.lineWidth = 3;
@@ -334,7 +306,7 @@
                 ctx.stroke();
 
                 ctx.beginPath();
-                ctx.arc(this.x, this.y, this.radius * 0.4, 0, Math.PI*2);
+                ctx.arc(this.x, this.y, this.radius * 0.35, 0, Math.PI*2);
                 ctx.fillStyle = this.color;
                 ctx.fill();
 
@@ -351,14 +323,15 @@
                     let nx = dx / distance;
                     let ny = dy / distance;
 
-                    ball.x = this.x + nx * (ball.radius + this.radius + 1);
+                    // Extrude outside bounding radius instantly
+                    ball.x = this.x + nx * (ball.radius + this.radius + 0.5);
 
-                    let kickForce = 6.5;
+                    let kickForce = 6.0;
                     let dot = ball.vx * nx + ball.vy * ny;
                     ball.vx = (ball.vx - 2 * dot * nx) + nx * kickForce;
                     ball.vy = (ball.vy - 2 * dot * ny) + ny * kickForce;
 
-                    this.flash = 8;
+                    this.flash = 6;
                     score += this.points;
                     spawnParticles(this.x + nx*this.radius, this.y + ny*this.radius, this.color);
                     updateUI();
@@ -375,17 +348,17 @@
                 this.targetAngle = targetAngle * Math.PI / 180;
                 this.currentAngle = this.baseAngle;
                 this.isLeft = isLeft;
-                this.thickness = 7;
+                this.thickness = 8;
             }
 
             update(isActive) {
-                let velocity = 0.38; 
+                let velocity = 0.35; 
                 if (isActive) {
                     if (this.isLeft) this.currentAngle = Math.max(this.targetAngle, this.currentAngle - velocity);
                     else this.currentAngle = Math.min(this.targetAngle, this.currentAngle + velocity);
                 } else {
-                    if (this.isLeft) this.currentAngle = Math.min(this.baseAngle, this.currentAngle + velocity * 0.5);
-                    else this.currentAngle = Math.max(this.baseAngle, this.currentAngle - velocity * 0.5);
+                    if (this.isLeft) this.currentAngle = Math.min(this.baseAngle, this.currentAngle + velocity * 0.4);
+                    else this.currentAngle = Math.max(this.baseAngle, this.currentAngle - velocity * 0.4);
                 }
             }
 
@@ -427,23 +400,26 @@
                     let nx = dx / dist;
                     let ny = dy / dist;
 
-                    ball.x = projX + nx * (ball.radius + this.thickness / 2 + 1);
+                    ball.x = projX + nx * (ball.radius + this.thickness / 2 + 0.5);
 
                     let dot = ball.vx * nx + ball.vy * ny;
-                    ball.vx = ball.vx - 2 * dot * nx;
-                    ball.vy = ball.vy - 2 * dot * ny;
+                    if (dot < 0) {
+                        ball.vx = ball.vx - 2 * dot * nx;
+                        ball.vy = ball.vy - 2 * dot * ny;
 
-                    if ((this.isLeft && leftFlipperActive) || (!this.isLeft && rightFlipperActive)) {
-                        let dynamicKick = 8.5 * (1.2 - t * 0.6);
-                        ball.vy -= dynamicKick;
-                        ball.vx += this.isLeft ? 2.5 : -2.5;
-                        spawnParticles(ball.x, ball.y, colors.cyan, 4);
+                        // Give clean dynamic upward boost if flipper is moving upward
+                        if ((this.isLeft && leftFlipperActive && ball.vy > -6) || (!this.isLeft && rightFlipperActive && ball.vy > -6)) {
+                            let speedModifier = (1.3 - t * 0.6); // Tip creates maximum speed
+                            ball.vy = -12 * speedModifier;
+                            ball.vx += this.isLeft ? 3 : -3;
+                            spawnParticles(ball.x, ball.y, colors.cyan, 3);
+                        }
                     }
                 }
             }
         }
 
-        // Initialize Objects & Table Geometry
+        // Initialize Elements
         const ball = new Ball();
         const bumpers = [
             new Bumper(130, 150, 24, 100, colors.magenta),
@@ -453,43 +429,42 @@
             new Bumper(290, 280, 16, 150, colors.yellow)
         ];
 
-        const leftFlipper = new Flipper(95, 520, 68, 28, -22, true);
-        const rightFlipper = new Flipper(265, 520, 68, 152, 202, false);
+        const leftFlipper = new Flipper(95, 520, 68, 26, -24, true);
+        const rightFlipper = new Flipper(265, 520, 68, 154, 204, false);
 
         const walls = [
             // Outer Main Frame Walls
             new Wall(0, 140, 0, 600, colors.purple),
-            new Wall(360, 160, 360, 600, colors.purple), // Launcher Channel Barrier Left
-            new Wall(400, 140, 400, 600, colors.purple), // Launcher Channel Barrier Right
+            new Wall(360, 175, 360, 600, colors.purple), // Launcher Left Barrier Line
+            new Wall(400, 140, 400, 600, colors.purple), // Launcher Right Exterior Line
             
-            // Curved Top Arch Track
-            new Wall(0, 140, 50, 70, colors.purple),
-            new Wall(50, 70, 140, 20, colors.purple),
-            new Wall(140, 20, 260, 20, colors.purple),
-            new Wall(260, 20, 350, 70, colors.purple),
-            new Wall(350, 70, 400, 140, colors.purple),
+            // Smoother Curving Top Track
+            new Wall(0, 140, 45, 75, colors.purple),
+            new Wall(45, 75, 130, 25, colors.purple),
+            new Wall(130, 25, 270, 25, colors.purple),
+            new Wall(270, 25, 355, 75, colors.purple),
+            new Wall(355, 75, 400, 140, colors.purple),
 
-            // Inlanes & Bottom Guides
+            // Lower Outlanes & Guides
             new Wall(0, 420, 55, 475, colors.purple),
             new Wall(55, 475, 55, 530, colors.purple),
             new Wall(360, 420, 305, 475, colors.purple),
             new Wall(305, 475, 305, 530, colors.purple),
 
-            // Left Slingshot Triangle
-            new Wall(55, 390, 95, 465, colors.green, true),
+            // Left Triangular Slingshot
+            new Wall(55, 395, 95, 465, colors.green, true),
             new Wall(95, 465, 55, 465, colors.green),
-            new Wall(55, 465, 55, 390, colors.green),
+            new Wall(55, 465, 55, 395, colors.green),
 
-            // Right Slingshot Triangle
-            new Wall(305, 390, 265, 465, colors.green, true),
+            // Right Triangular Slingshot
+            new Wall(305, 395, 265, 465, colors.green, true),
             new Wall(265, 465, 305, 465, colors.green),
-            new Wall(305, 465, 305, 390, colors.green)
+            new Wall(305, 465, 305, 395, colors.green)
         ];
 
-        // Static Wall Vector Collision Handler Routine
+        // Structural Vector Collision Handler Routine
         function handleWallCollisions(ball, wall) {
-            // Ignore wall physics inside launch chute IF the ball is screaming upwards 
-            // This guarantees absolutely zero friction dampening until it clears the top loop!
+            // Bypass chute friction dampening lines entirely while ball is rocketing upward
             if (ball.x > 355 && ball.y > 150 && ball.vy < 0) return;
 
             let x1 = wall.x1, y1 = wall.y1, x2 = wall.x2, y2 = wall.y2;
@@ -512,16 +487,18 @@
                 let nx = distDx / (dist || 1);
                 let ny = distDy / (dist || 1);
 
-                ball.x = projX + nx * (ball.radius + 1);
+                // Displace ball cleanly outside line barrier
+                ball.x = projX + nx * (ball.radius + 0.5);
 
                 let dot = ball.vx * nx + ball.vy * ny;
                 if (dot < 0) { 
-                    let bounceFactor = 0.55;
+                    let bounceFactor = 0.50;
                     ball.vx = (ball.vx - 2 * dot * nx) * bounceFactor;
                     ball.vy = (ball.vy - 2 * dot * ny) * bounceFactor;
 
+                    // Slingshot Reactive Impulse Kick
                     if (wall.isSlingshot) {
-                        let kick = 5.5;
+                        let kick = 5.0;
                         ball.vx += nx * kick;
                         ball.vy += ny * kick;
                         wall.flashTimer = 8;
@@ -553,15 +530,31 @@
             updateUI();
         }
 
-        // Main Loop Core Logic
+        // Standardized Main Loop Core Logic Engine
         function update() {
-            const subSteps = 2;
-            for(let step=0; step<subSteps; step++) {
-                ball.update();
+            if (gameOver) return;
 
-                leftFlipper.update(leftFlipperActive);
-                rightFlipper.update(rightFlipperActive);
+            // 1. Calculate environmental forces and hard speed caps once per frame loop
+            ball.vy += gravity;
+            ball.vx = Math.max(-13, Math.min(13, ball.vx));
+            ball.vy = Math.max(-18, Math.min(15, ball.vy)); // Perfect maximum speed ceiling
 
+            leftFlipper.update(leftFlipperActive);
+            rightFlipper.update(rightFlipperActive);
+
+            // 2. Multi-step position checking loops (breaks velocity into 6 tiny safety increments)
+            for(let step=0; step < SUB_STEPS; step++) {
+                ball.x += ball.vx / SUB_STEPS;
+                ball.y += ball.vy / SUB_STEPS;
+
+                // Launch Track Bottom containment floor check inside step
+                if (ball.x > 360 && ball.y + ball.radius > 575) {
+                    ball.y = 575 - ball.radius;
+                    ball.vy = 0;
+                    ball.vx = 0;
+                }
+
+                // Process collisions at micro-intervals
                 for (let wall of walls) {
                     handleWallCollisions(ball, wall);
                 }
@@ -572,48 +565,53 @@
                 rightFlipper.checkCollision(ball);
             }
 
-            // Handle Launcher Plunger tension accumulation
+            // Capture Frame trail state
+            ball.recordTrail();
+
+            // Handle Launcher Plunger compression system state
             if (isPullingPlunger) {
-                plungerTension = Math.min(plungerTension + 2.0, 45); // Builds force faster
+                plungerTension = Math.min(plungerTension + 2.0, 40);
             } else if (plungerTension > 0) {
-                // Fire Action Trigger
-                if (ball.x > 360 && ball.y >= 530) {
-                    ball.vy = -plungerTension * 0.52; // Boosted power coefficient
-                    ball.vx = 0; // SHOOT PURELY VERTICAL to prevent early wall collisions!
+                if (ball.x > 360 && ball.y >= 520) {
+                    ball.vy = -plungerTension * 0.45; // Perfectly balanced vertical liftoff speed
+                    ball.vx = 0;
                     spawnParticles(ball.x, ball.y+10, colors.magenta, 6);
                 }
                 plungerTension = 0;
             }
 
-            // Clean Particle stack
+            // Edge Boundary Drain check
+            if (ball.y > canvas.height + 20) {
+                ballsLeft--;
+                updateUI();
+                if (ballsLeft <= 0) endGame();
+                else ball.reset();
+            }
+
+            // Clean expiring visual elements
             for (let i = particles.length - 1; i >= 0; i--) {
                 let p = particles[i];
-                p.x += p.vx;
-                p.y += p.vy;
+                p.x += p.vx; p.y += p.vy;
                 p.alpha -= 0.04;
                 if (p.alpha <= 0) particles.splice(i, 1);
             }
         }
 
-        // Frame Rendering Graph Engine
+        // Frame Graphic Output Manager
         function draw() {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
 
             // Render Static Board Vectors
-            for (let wall of walls) {
-                wall.draw();
-            }
+            for (let wall of walls) wall.draw();
 
             // Render Bumpers
-            for (let bumper of bumpers) {
-                bumper.draw();
-            }
+            for (let bumper of bumpers) bumper.draw();
 
             // Render Mechanical Flippers
             leftFlipper.draw();
             rightFlipper.draw();
 
-            // Render Active Explosive Particles
+            // Render Active Particles
             for(let p of particles) {
                 ctx.save();
                 ctx.globalAlpha = p.alpha;
