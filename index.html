@@ -180,7 +180,7 @@
         let ballsLeft = 5;
         let gameOver = false;
         const gravity = 0.24;
-        const SUB_STEPS = 6; // Safety math micro-steps
+        const SUB_STEPS = 6; // Maintains rock-solid physics tracking during fast launches
 
         // Control Switches
         let leftFlipperActive = false;
@@ -237,7 +237,7 @@
             }
         }
 
-        // Fixed Physics Ball Object
+        // Physics Ball Object
         class Ball {
             constructor() {
                 this.trail = [];
@@ -417,50 +417,43 @@
         // Initialize Elements
         const ball = new Ball();
         const bumpers = [
-            new Bumper(130, 150, 24, 100, colors.magenta),
-            new Bumper(230, 150, 24, 100, colors.magenta),
-            new Bumper(180, 225, 28, 200, colors.green),
-            new Bumper(70, 290, 16, 150, colors.yellow),
-            new Bumper(290, 290, 16, 150, colors.yellow)
+            new Bumper(130, 160, 24, 100, colors.magenta),
+            new Bumper(230, 160, 24, 100, colors.magenta),
+            new Bumper(180, 235, 28, 200, colors.green),
+            new Bumper(70, 300, 16, 150, colors.yellow),
+            new Bumper(290, 300, 16, 150, colors.yellow)
         ];
 
-        // Flippers repositioned cleanly to catch inlane feeds
         const leftFlipper = new Flipper(95, 530, 68, 26, -24, true);
         const rightFlipper = new Flipper(265, 530, 68, 154, 204, false);
 
         const walls = [
             // Outer Main Cabinet Enclosure
-            new Wall(0, 140, 0, 500, colors.purple),      // Left Wall
-            new Wall(360, 175, 360, 600, colors.purple),  // Launcher Left Chute Wall
-            new Wall(400, 140, 400, 600, colors.purple),  // Launcher Right Outer Wall
+            new Wall(0, 140, 0, 500, colors.purple),      
+            new Wall(360, 175, 360, 600, colors.purple),  
+            new Wall(400, 140, 400, 600, colors.purple),  
             
-            // Smoothed Top Orbit Arch
+            // Open, Smooth Top Orbit Arch (Vertical divider lines completely removed)
             new Wall(0, 140, 45, 75, colors.purple),
             new Wall(45, 75, 130, 25, colors.purple),
             new Wall(130, 25, 270, 25, colors.purple),
             new Wall(270, 25, 355, 75, colors.purple),
             new Wall(355, 75, 400, 140, colors.purple),
 
-            // Premium Top Lane Rollover Dividers
-            new Wall(130, 25, 130, 70, colors.purple),
-            new Wall(270, 25, 270, 70, colors.purple),
+            // LEFT INLANE/OUTLANE ASSEMBLY
+            new Wall(0, 500, 45, 560, colors.purple),     
+            new Wall(45, 360, 45, 480, colors.purple),    
+            new Wall(45, 480, 85, 530, colors.purple),    
 
-            // ================= LEFT ARCADE INLANE/OUTLANE ASSEMBLY =================
-            new Wall(0, 500, 45, 560, colors.purple),     // Outlane Drain Guide (Feeds to dark void)
-            new Wall(45, 360, 45, 480, colors.purple),    // Inlane Main Separation Wire
-            new Wall(45, 480, 85, 530, colors.purple),    // Inlane Return Chute (Rolls ball cleanly onto flipper)
+            new Wall(45, 380, 80, 450, colors.green, true), 
+            new Wall(80, 450, 45, 450, colors.green),       
+            new Wall(45, 450, 45, 380, colors.green),       
 
-            // Left Slingshot (Securely attached directly on top of the Separation Wire)
-            new Wall(45, 380, 80, 450, colors.green, true), // Active Hypotenuse Kicker
-            new Wall(80, 450, 45, 450, colors.green),       // Flat Solid Base
-            new Wall(45, 450, 45, 380, colors.green),       // Back Wall (Glued to divider)
+            // RIGHT INLANE/OUTLANE ASSEMBLY
+            new Wall(360, 500, 315, 560, colors.purple),   
+            new Wall(315, 360, 315, 480, colors.purple),   
+            new Wall(315, 480, 275, 530, colors.purple),   
 
-            // ================= RIGHT ARCADE INLANE/OUTLANE ASSEMBLY =================
-            new Wall(360, 500, 315, 560, colors.purple),   // Outlane Drain Guide
-            new Wall(315, 360, 315, 480, colors.purple),   // Inlane Main Separation Wire
-            new Wall(315, 480, 275, 530, colors.purple),   // Inlane Return Chute
-
-            // Right Slingshot (Mirror Securely attached to right divider wire)
             new Wall(315, 380, 280, 450, colors.green, true),
             new Wall(280, 450, 315, 450, colors.green),
             new Wall(315, 450, 315, 380, colors.green)
@@ -537,13 +530,14 @@
             if (gameOver) return;
 
             ball.vy += gravity;
-            ball.vx = Math.max(-13, Math.min(13, ball.vx));
-            ball.vy = Math.max(-18, Math.min(15, ball.vy)); 
+            
+            // Speed Limits: Expanded upward speed threshold (-26) to handle the new rocket force
+            ball.vx = Math.max(-14, Math.min(14, ball.vx));
+            ball.vy = Math.max(-26, Math.min(15, ball.vy)); 
 
             leftFlipper.update(leftFlipperActive);
             rightFlipper.update(rightFlipperActive);
 
-            // Sub-step loop breaks velocity into 6 tiny checks per frame to prevent boundary clipping
             for(let step=0; step < SUB_STEPS; step++) {
                 ball.x += ball.vx / SUB_STEPS;
                 ball.y += ball.vy / SUB_STEPS;
@@ -566,12 +560,12 @@
 
             ball.recordTrail();
 
-            // Plunger system management
+            // Plunger system management (Enhanced pull charge speed and peak force)
             if (isPullingPlunger) {
-                plungerTension = Math.min(plungerTension + 2.0, 40);
+                plungerTension = Math.min(plungerTension + 2.5, 50); 
             } else if (plungerTension > 0) {
                 if (ball.x > 360 && ball.y >= 520) {
-                    ball.vy = -plungerTension * 0.46; 
+                    ball.vy = -plungerTension * 0.52; // Boosted raw kinetic firing power
                     ball.vx = 0;
                     spawnParticles(ball.x, ball.y+10, colors.magenta, 6);
                 }
