@@ -179,8 +179,8 @@
         let score = 0;
         let ballsLeft = 5;
         let gameOver = false;
-        const gravity = 0.25;
-        const SUB_STEPS = 6; // High performance micro-steps calculation layout
+        const gravity = 0.24;
+        const SUB_STEPS = 6; // Safety math micro-steps
 
         // Control Switches
         let leftFlipperActive = false;
@@ -253,14 +253,12 @@
                 this.trail = [];
             }
 
-            // Updates base frame states (like trails)
             recordTrail() {
                 this.trail.push({x: this.x, y: this.y});
                 if(this.trail.length > 6) this.trail.shift();
             }
 
             draw() {
-                // Render Speed Trail
                 for(let i=0; i<this.trail.length; i++) {
                     ctx.beginPath();
                     ctx.arc(this.trail[i].x, this.trail[i].y, this.radius * (i/this.trail.length), 0, Math.PI*2);
@@ -268,7 +266,6 @@
                     ctx.fill();
                 }
 
-                // Render Physical Ball
                 ctx.save();
                 ctx.beginPath();
                 ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
@@ -323,7 +320,6 @@
                     let nx = dx / distance;
                     let ny = dy / distance;
 
-                    // Extrude outside bounding radius instantly
                     ball.x = this.x + nx * (ball.radius + this.radius + 0.5);
 
                     let kickForce = 6.0;
@@ -407,9 +403,8 @@
                         ball.vx = ball.vx - 2 * dot * nx;
                         ball.vy = ball.vy - 2 * dot * ny;
 
-                        // Give clean dynamic upward boost if flipper is moving upward
                         if ((this.isLeft && leftFlipperActive && ball.vy > -6) || (!this.isLeft && rightFlipperActive && ball.vy > -6)) {
-                            let speedModifier = (1.3 - t * 0.6); // Tip creates maximum speed
+                            let speedModifier = (1.3 - t * 0.6); 
                             ball.vy = -12 * speedModifier;
                             ball.vx += this.isLeft ? 3 : -3;
                             spawnParticles(ball.x, ball.y, colors.cyan, 3);
@@ -425,46 +420,55 @@
             new Bumper(130, 150, 24, 100, colors.magenta),
             new Bumper(230, 150, 24, 100, colors.magenta),
             new Bumper(180, 225, 28, 200, colors.green),
-            new Bumper(70, 280, 16, 150, colors.yellow),
-            new Bumper(290, 280, 16, 150, colors.yellow)
+            new Bumper(70, 290, 16, 150, colors.yellow),
+            new Bumper(290, 290, 16, 150, colors.yellow)
         ];
 
-        const leftFlipper = new Flipper(95, 520, 68, 26, -24, true);
-        const rightFlipper = new Flipper(265, 520, 68, 154, 204, false);
+        // Flippers repositioned cleanly to catch inlane feeds
+        const leftFlipper = new Flipper(95, 530, 68, 26, -24, true);
+        const rightFlipper = new Flipper(265, 530, 68, 154, 204, false);
 
         const walls = [
-            // Outer Main Frame Walls
-            new Wall(0, 140, 0, 600, colors.purple),
-            new Wall(360, 175, 360, 600, colors.purple), // Launcher Left Barrier Line
-            new Wall(400, 140, 400, 600, colors.purple), // Launcher Right Exterior Line
+            // Outer Main Cabinet Enclosure
+            new Wall(0, 140, 0, 500, colors.purple),      // Left Wall
+            new Wall(360, 175, 360, 600, colors.purple),  // Launcher Left Chute Wall
+            new Wall(400, 140, 400, 600, colors.purple),  // Launcher Right Outer Wall
             
-            // Smoother Curving Top Track
+            // Smoothed Top Orbit Arch
             new Wall(0, 140, 45, 75, colors.purple),
             new Wall(45, 75, 130, 25, colors.purple),
             new Wall(130, 25, 270, 25, colors.purple),
             new Wall(270, 25, 355, 75, colors.purple),
             new Wall(355, 75, 400, 140, colors.purple),
 
-            // Lower Outlanes & Guides
-            new Wall(0, 420, 55, 475, colors.purple),
-            new Wall(55, 475, 55, 530, colors.purple),
-            new Wall(360, 420, 305, 475, colors.purple),
-            new Wall(305, 475, 305, 530, colors.purple),
+            // Premium Top Lane Rollover Dividers
+            new Wall(130, 25, 130, 70, colors.purple),
+            new Wall(270, 25, 270, 70, colors.purple),
 
-            // Left Triangular Slingshot
-            new Wall(55, 395, 95, 465, colors.green, true),
-            new Wall(95, 465, 55, 465, colors.green),
-            new Wall(55, 465, 55, 395, colors.green),
+            // ================= LEFT ARCADE INLANE/OUTLANE ASSEMBLY =================
+            new Wall(0, 500, 45, 560, colors.purple),     // Outlane Drain Guide (Feeds to dark void)
+            new Wall(45, 360, 45, 480, colors.purple),    // Inlane Main Separation Wire
+            new Wall(45, 480, 85, 530, colors.purple),    // Inlane Return Chute (Rolls ball cleanly onto flipper)
 
-            // Right Triangular Slingshot
-            new Wall(305, 395, 265, 465, colors.green, true),
-            new Wall(265, 465, 305, 465, colors.green),
-            new Wall(305, 465, 305, 395, colors.green)
+            // Left Slingshot (Securely attached directly on top of the Separation Wire)
+            new Wall(45, 380, 80, 450, colors.green, true), // Active Hypotenuse Kicker
+            new Wall(80, 450, 45, 450, colors.green),       // Flat Solid Base
+            new Wall(45, 450, 45, 380, colors.green),       // Back Wall (Glued to divider)
+
+            // ================= RIGHT ARCADE INLANE/OUTLANE ASSEMBLY =================
+            new Wall(360, 500, 315, 560, colors.purple),   // Outlane Drain Guide
+            new Wall(315, 360, 315, 480, colors.purple),   // Inlane Main Separation Wire
+            new Wall(315, 480, 275, 530, colors.purple),   // Inlane Return Chute
+
+            // Right Slingshot (Mirror Securely attached to right divider wire)
+            new Wall(315, 380, 280, 450, colors.green, true),
+            new Wall(280, 450, 315, 450, colors.green),
+            new Wall(315, 450, 315, 380, colors.green)
         ];
 
-        // Structural Vector Collision Handler Routine
+        // Line Vector Collision Handler Routine
         function handleWallCollisions(ball, wall) {
-            // Bypass chute friction dampening lines entirely while ball is rocketing upward
+            // Friction bypass for the launch tube when moving up
             if (ball.x > 355 && ball.y > 150 && ball.vy < 0) return;
 
             let x1 = wall.x1, y1 = wall.y1, x2 = wall.x2, y2 = wall.y2;
@@ -487,18 +491,16 @@
                 let nx = distDx / (dist || 1);
                 let ny = distDy / (dist || 1);
 
-                // Displace ball cleanly outside line barrier
                 ball.x = projX + nx * (ball.radius + 0.5);
 
                 let dot = ball.vx * nx + ball.vy * ny;
                 if (dot < 0) { 
-                    let bounceFactor = 0.50;
+                    let bounceFactor = 0.45;
                     ball.vx = (ball.vx - 2 * dot * nx) * bounceFactor;
                     ball.vy = (ball.vy - 2 * dot * ny) * bounceFactor;
 
-                    // Slingshot Reactive Impulse Kick
                     if (wall.isSlingshot) {
-                        let kick = 5.0;
+                        let kick = 5.2;
                         ball.vx += nx * kick;
                         ball.vy += ny * kick;
                         wall.flashTimer = 8;
@@ -530,31 +532,28 @@
             updateUI();
         }
 
-        // Standardized Main Loop Core Logic Engine
+        // Sub-Stepped Logic Execution Engine
         function update() {
             if (gameOver) return;
 
-            // 1. Calculate environmental forces and hard speed caps once per frame loop
             ball.vy += gravity;
             ball.vx = Math.max(-13, Math.min(13, ball.vx));
-            ball.vy = Math.max(-18, Math.min(15, ball.vy)); // Perfect maximum speed ceiling
+            ball.vy = Math.max(-18, Math.min(15, ball.vy)); 
 
             leftFlipper.update(leftFlipperActive);
             rightFlipper.update(rightFlipperActive);
 
-            // 2. Multi-step position checking loops (breaks velocity into 6 tiny safety increments)
+            // Sub-step loop breaks velocity into 6 tiny checks per frame to prevent boundary clipping
             for(let step=0; step < SUB_STEPS; step++) {
                 ball.x += ball.vx / SUB_STEPS;
                 ball.y += ball.vy / SUB_STEPS;
 
-                // Launch Track Bottom containment floor check inside step
                 if (ball.x > 360 && ball.y + ball.radius > 575) {
                     ball.y = 575 - ball.radius;
                     ball.vy = 0;
                     ball.vx = 0;
                 }
 
-                // Process collisions at micro-intervals
                 for (let wall of walls) {
                     handleWallCollisions(ball, wall);
                 }
@@ -565,22 +564,21 @@
                 rightFlipper.checkCollision(ball);
             }
 
-            // Capture Frame trail state
             ball.recordTrail();
 
-            // Handle Launcher Plunger compression system state
+            // Plunger system management
             if (isPullingPlunger) {
                 plungerTension = Math.min(plungerTension + 2.0, 40);
             } else if (plungerTension > 0) {
                 if (ball.x > 360 && ball.y >= 520) {
-                    ball.vy = -plungerTension * 0.45; // Perfectly balanced vertical liftoff speed
+                    ball.vy = -plungerTension * 0.46; 
                     ball.vx = 0;
                     spawnParticles(ball.x, ball.y+10, colors.magenta, 6);
                 }
                 plungerTension = 0;
             }
 
-            // Edge Boundary Drain check
+            // Bottom Drain check
             if (ball.y > canvas.height + 20) {
                 ballsLeft--;
                 updateUI();
@@ -588,7 +586,7 @@
                 else ball.reset();
             }
 
-            // Clean expiring visual elements
+            // Clean active visual effects
             for (let i = particles.length - 1; i >= 0; i--) {
                 let p = particles[i];
                 p.x += p.vx; p.y += p.vy;
@@ -597,21 +595,16 @@
             }
         }
 
-        // Frame Graphic Output Manager
+        // Canvas Painter Engine
         function draw() {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-            // Render Static Board Vectors
             for (let wall of walls) wall.draw();
-
-            // Render Bumpers
             for (let bumper of bumpers) bumper.draw();
 
-            // Render Mechanical Flippers
             leftFlipper.draw();
             rightFlipper.draw();
 
-            // Render Active Particles
             for(let p of particles) {
                 ctx.save();
                 ctx.globalAlpha = p.alpha;
@@ -624,7 +617,6 @@
                 ctx.restore();
             }
 
-            // Render Mechanical Plunger Spring State
             ctx.save();
             ctx.fillStyle = colors.magenta;
             ctx.shadowColor = colors.magenta;
@@ -632,7 +624,6 @@
             ctx.fillRect(374, 575 + plungerTension, 16, 25 - plungerTension * 0.5);
             ctx.restore();
 
-            // Render Main Ball Entity
             ball.draw();
         }
 
